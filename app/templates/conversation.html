@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block title %}{{ g.name or 'Guest' }}{% endblock %}
+{% block content %}
+<div class="row"><h1>{{ g.name or 'Guest' }}</h1>
+  {% if g.bot_paused %}<span class="pill st-pending_deposit">Bot paused</span>{% else %}<span class="pill st-confirmed">Bot on</span>{% endif %}
+  <span class="spacer"></span>
+  {% if g.bot_paused %}
+    <form method="post" action="/admin/conversations/{{ g.psid }}/resume" class="inline"><button class="small">Resume bot</button></form>
+  {% else %}
+    <form method="post" action="/admin/conversations/{{ g.psid }}/pause" class="inline"><button class="secondary small">Pause bot (I'll reply)</button></form>
+  {% endif %}
+  {% if g.needs_attention %}<form method="post" action="/admin/conversations/{{ g.psid }}/done" class="inline"><button class="secondary small">Mark handled</button></form>{% endif %}
+</div>
+{% if g.bot_paused and g.paused_reason %}<div class="notice">Paused: {{ g.paused_reason }}. Bot resumes automatically after {{ s.auto_resume_hours }}h of silence from you{{ ' (disabled)' if s.auto_resume_hours in ('0','') }}.</div>{% endif %}
+<div class="grid split">
+<div class="card">
+  <div class="chat">
+  {% for m in msgs %}
+    <div class="msg {{ m.role }}"><span class="who">{{ {'user': g.name or 'Guest', 'assistant': 'Bot', 'staff': 'You', 'system': 'System'}[m.role] }} · {{ m.created_at | localtime }}</span>{{ m.content }}</div>
+  {% else %}<div class="empty">No messages.</div>{% endfor %}
+  </div>
+  <form method="post" action="/admin/conversations/{{ g.psid }}/send" style="margin-top:14px">
+    <textarea name="text" placeholder="Reply as staff (sends on Messenger and pauses the bot for this guest)" style="min-height:70px" required></textarea>
+    <p><button>Send</button></p>
+  </form>
+  <p class="small muted">You can also reply from Meta Business Suite / the Page inbox; the bot notices and pauses itself.</p>
+</div>
+<div class="card"><h2>Bookings</h2>
+  {% for b in bookings %}<div style="padding:4px 0"><a href="/admin/bookings/{{ b.id }}">{{ b.code }}</a> · {{ b.check_in }} · <span class="pill st-{{ b.status }}">{{ STATUS_LABELS[b.status] }}</span></div>
+  {% else %}<div class="empty">None.</div>{% endfor %}
+</div>
+</div>
+{% endblock %}

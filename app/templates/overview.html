@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% block title %}Overview{% endblock %}
+{% block content %}
+<div class="row"><h1>Today · {{ today | nicedate }}</h1><span class="spacer"></span><a class="btn small" href="/admin/bookings/new">+ Add booking</a></div>
+
+{% if attention %}
+<div class="card" style="border-color:var(--err)">
+  <h2>Guests waiting for you ({{ attention|length }})</h2>
+  {% for g in attention %}
+    <div class="row" style="padding:4px 0"><a href="/admin/conversations/{{ g.psid }}"><b>{{ g.name or g.psid }}</b></a>
+      <span class="small muted">{{ g.paused_reason }} · {{ g.last_user_msg_at | localtime }}</span></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if pending %}
+<div class="card" style="border-color:var(--warn)">
+  <h2>Deposits to check ({{ pending|length }})</h2>
+  <div class="table-wrap"><table class="bk"><tbody>
+  {% for b in pending %}{% include "_booking_row.html" %}{% endfor %}
+  </tbody></table></div>
+</div>
+{% endif %}
+
+<div class="grid">
+  <div class="card"><h2>Arrivals today</h2>
+    {% for b in arrivals %}<div style="padding:4px 0"><a href="/admin/bookings/{{ b.id }}">{{ b.guest_name }}</a> · {{ b.room_name }} · <span class="pill st-{{ b.status }}">{{ STATUS_LABELS[b.status] }}</span></div>
+    {% else %}<div class="empty">No arrivals.</div>{% endfor %}
+  </div>
+  <div class="card"><h2>Departures today</h2>
+    {% for b in departures %}<div style="padding:4px 0"><a href="/admin/bookings/{{ b.id }}">{{ b.guest_name }}</a> · {{ b.room_name }}</div>
+    {% else %}<div class="empty">No departures.</div>{% endfor %}
+  </div>
+  <div class="card"><h2>In house now</h2>
+    {% for b in in_house %}<div style="padding:4px 0"><a href="/admin/bookings/{{ b.id }}">{{ b.guest_name }}</a> · {{ b.room_name }} · until {{ b.check_out | nicedate }}</div>
+    {% else %}<div class="empty">Nobody checked in.</div>{% endfor %}
+  </div>
+</div>
+
+<div class="card"><div class="row"><h2>Rooms free – next 7 nights</h2><span class="spacer"></span><a class="small" href="/admin/calendar">Full calendar →</a></div>
+  {% include "_calgrid.html" %}
+</div>
+
+<div class="card"><h2>Upcoming bookings</h2>
+  <div class="table-wrap"><table class="bk"><thead><tr><th>Code</th><th>Guest</th><th>Room</th><th>Dates</th><th>Total</th><th>Status</th></tr></thead><tbody>
+  {% for b in upcoming %}{% include "_booking_row.html" %}{% else %}<tr><td colspan="6" class="empty">No upcoming bookings yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% block title %}Test bot{% endblock %}
+{% block content %}
+<div class="row"><h1>Test the bot</h1><span class="spacer"></span>
+  <form method="post" action="/admin/test-chat/reset" class="inline"><button class="secondary small">Reset test</button></form></div>
+<p class="muted">Chat like a guest (English or Khmer) to check answers before going live. Bookings made here are real entries; "Reset test" cancels them.</p>
+{% if not ai_ready %}<div class="notice">ANTHROPIC_API_KEY is not set, so the bot cannot answer yet.</div>{% endif %}
+<div class="card" style="max-width:640px">
+  <div class="chat" id="chat">
+  {% for m in msgs %}<div class="msg {{ m.role }}">{{ m.content }}</div>{% endfor %}
+  </div>
+  <form id="f" class="row" style="margin-top:14px">
+    <input id="t" placeholder="Type a message… e.g. 'Do you have a room for 2 this Saturday?'" autocomplete="off" style="flex:1">
+    <button id="b">Send</button>
+  </form>
+</div>
+<script>
+const chat = document.getElementById('chat'), f = document.getElementById('f'), t = document.getElementById('t'), b = document.getElementById('b');
+function add(role, text, imgs) {
+  const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text;
+  (imgs || []).forEach(u => { const i = document.createElement('img'); i.src = u; d.appendChild(i); });
+  chat.appendChild(d); d.scrollIntoView({behavior: 'smooth', block: 'end'}); return d;
+}
+f.addEventListener('submit', async e => {
+  e.preventDefault(); const text = t.value.trim(); if (!text) return;
+  add('user', text); t.value = ''; b.disabled = true;
+  const wait = add('assistant', '…');
+  try {
+    const r = await fetch('/admin/test-chat', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text})});
+    const j = await r.json(); wait.remove(); add('assistant', j.reply || '(no reply)', j.images);
+  } catch (err) { wait.textContent = 'Error: ' + err; }
+  b.disabled = false; t.focus();
+});
+</script>
+{% endblock %}

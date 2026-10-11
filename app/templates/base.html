@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Dashboard{% endblock %} · {{ s.hotel_name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top"><div class="top-inner">
+  <a class="brand" href="/admin">{{ s.hotel_name }}</a>
+  <nav class="tabs">
+    {% set links = [("/admin","Overview"),("/admin/bookings","Bookings"),("/admin/calendar","Calendar"),
+                    ("/admin/conversations","Chats"),("/admin/rooms","Rooms & prices"),("/admin/info","Hotel info"),
+                    ("/admin/test-chat","Test bot"),("/admin/settings","Settings")] %}
+    {% for href, label in links %}
+      <a href="{{ href }}" class="{{ 'on' if (path == href or (href != '/admin' and path.startswith(href))) else '' }}">{{ label }}
+        {%- if href == '/admin/conversations' and attention_count %}<span class="badge">{{ attention_count }}</span>{% endif -%}
+        {%- if href == '/admin/bookings' and pending_count %}<span class="badge" style="background:var(--warn)">{{ pending_count }}</span>{% endif -%}
+      </a>
+    {% endfor %}
+    <a href="/admin/logout">Log out</a>
+  </nav>
+</div></header>
+<main>
+  {% if s.bot_enabled != '1' %}<div class="notice">The bot is switched OFF in Settings. Guests' messages wait for you in Chats.</div>{% endif %}
+  {% if flash %}<div class="flash {{ flash.kind }}">{{ flash.msg }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

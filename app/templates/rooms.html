@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% block title %}Rooms & prices{% endblock %}
+{% block content %}
+<h1>Room types & prices</h1>
+<p class="muted">"Number of rooms" is how many rooms of this type you have. The bot sells up to that many per night.</p>
+{% for r in rooms %}
+<div class="card">
+  <form method="post" action="/admin/rooms">
+    <input type="hidden" name="room_id" value="{{ r.id }}">
+    <div class="row"><h2 style="margin:0">{{ r.name }}</h2>{% if not r.active %}<span class="pill st-cancelled">Hidden</span>{% endif %}</div>
+    <div class="fields">
+      <div><label>Name (English)</label><input name="name" value="{{ r.name }}" required></div>
+      <div><label>Name (Khmer)</label><input name="name_km" value="{{ r.name_km }}"></div>
+      <div><label>Price / night ({{ s.currency }})</label><input type="number" step="0.01" name="price" value="{{ r.price }}" required></div>
+      <div><label>Max guests</label><input type="number" name="capacity" value="{{ r.capacity }}" min="1"></div>
+      <div><label>Number of rooms</label><input type="number" name="quantity" value="{{ r.quantity }}" min="0"></div>
+      <div><label>Display order</label><input type="number" name="sort" value="{{ r.sort }}"></div>
+    </div>
+    <div class="fields">
+      <div><label>Description (English)</label><textarea name="description" style="min-height:60px">{{ r.description }}</textarea></div>
+      <div><label>Description (Khmer)</label><textarea name="description_km" style="min-height:60px">{{ r.description_km }}</textarea></div>
+    </div>
+    <label class="check"><input type="checkbox" name="active" value="1" {{ 'checked' if r.active }}> Available for booking</label>
+    <button class="secondary small">Save room</button>
+  </form>
+  <div class="photos">
+    {% for p in r.photos %}<figure><img src="/media/{{ p }}" alt=""><form method="post" action="/admin/rooms/{{ r.id }}/photos/delete"><input type="hidden" name="photo" value="{{ p }}"><button class="danger" title="Remove">×</button></form></figure>{% endfor %}
+  </div>
+  <form method="post" action="/admin/rooms/{{ r.id }}/photos" enctype="multipart/form-data" class="row">
+    <input type="file" name="photo" accept="image/*" required style="flex:1;min-width:180px"><button class="secondary small">Upload photo</button>
+  </form>
+</div>
+{% endfor %}
+
+<details class="card"><summary><b>+ Add a new room type</b></summary>
+  <form method="post" action="/admin/rooms">
+    <div class="fields">
+      <div><label>Name (English)</label><input name="name" required></div>
+      <div><label>Name (Khmer)</label><input name="name_km"></div>
+      <div><label>Price / night</label><input type="number" step="0.01" name="price" required></div>
+      <div><label>Max guests</label><input type="number" name="capacity" value="2"></div>
+      <div><label>Number of rooms</label><input type="number" name="quantity" value="1"></div>
+      <div><label>Display order</label><input type="number" name="sort" value="10"></div>
+    </div>
+    <label>Description (English)</label><textarea name="description" style="min-height:60px"></textarea>
+    <label>Description (Khmer)</label><textarea name="description_km" style="min-height:60px"></textarea>
+    <input type="hidden" name="active" value="1">
+    <p><button>Add room type</button></p>
+  </form>
+</details>
+
+<div class="grid">
+<form class="card" method="post" action="/admin/rates">
+  <h2>Special prices (holidays, high season)</h2>
+  <div class="fields">
+    <div><label>Room type</label><select name="room_type_id">{% for r in rooms %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
+    <div><label>Price / night</label><input type="number" step="0.01" name="price" required></div>
+    <div><label>From night</label><input type="date" name="date_from" required></div>
+    <div><label>Last night (included)</label><input type="date" name="date_to" required></div>
+  </div>
+  <label>Note</label><input name="note" placeholder="e.g. Khmer New Year">
+  <p><button>Add special price</button></p>
+</form>
+<div class="card"><h2>Upcoming special prices</h2>
+  {% for o in rates %}
+  <div class="row" style="padding:4px 0;border-bottom:1px solid var(--line)">
+    <div>{{ o.room_name }}: <b>{{ '%.2f' % o.price }}</b> · {{ o.date_from | nicedate }} → {{ o.date_to | nicedate }}<br><span class="small muted">{{ o.note }}</span></div>
+    <span class="spacer"></span><form method="post" action="/admin/rates/{{ o.id }}/delete" class="inline"><button class="danger small">Remove</button></form>
+  </div>
+  {% else %}<div class="empty">None.</div>{% endfor %}
+</div>
+</div>
+{% endblock %}

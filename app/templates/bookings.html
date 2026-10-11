@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}Bookings{% endblock %}
+{% block content %}
+<div class="row"><h1>Bookings</h1><span class="spacer"></span><a class="btn small" href="/admin/bookings/new">+ Add booking</a></div>
+<form class="card row" method="get">
+  <input name="q" value="{{ q }}" placeholder="Search code, name, phone" style="flex:2;min-width:180px">
+  <select name="status" style="flex:1;min-width:150px"><option value="">All statuses</option>
+    {% for k, v in STATUS_LABELS.items() %}<option value="{{ k }}" {{ 'selected' if status == k }}>{{ v }}</option>{% endfor %}</select>
+  <select name="upcoming" style="flex:1;min-width:130px"><option value="1" {{ 'selected' if upcoming == '1' }}>Current & upcoming</option><option value="0" {{ 'selected' if upcoming == '0' }}>Include past</option></select>
+  <button type="submit">Filter</button>
+</form>
+<div class="card table-wrap"><table class="bk">
+  <thead><tr><th>Code</th><th>Guest</th><th>Room</th><th>Dates</th><th>Total ({{ s.currency }})</th><th>Status</th></tr></thead>
+  <tbody>{% for b in rows %}{% include "_booking_row.html" %}{% else %}<tr><td colspan="6" class="empty">No bookings found.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

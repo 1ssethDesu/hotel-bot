@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}Chats{% endblock %}
+{% block content %}
+<h1>Messenger chats</h1>
+<div class="card table-wrap"><table>
+  <thead><tr><th>Guest</th><th>Last message</th><th>Bot</th><th>When</th></tr></thead>
+  <tbody>{% for g in rows %}
+  <tr>
+    <td><a href="/admin/conversations/{{ g.psid }}"><b>{{ g.name or 'Guest' }}</b></a>{% if g.needs_attention %} <span class="badge">!</span>{% endif %}</td>
+    <td class="small">{{ (g.last_msg or '')[:90] }}</td>
+    <td>{% if g.bot_paused %}<span class="pill st-pending_deposit">Paused</span>{% else %}<span class="pill st-confirmed">On</span>{% endif %}</td>
+    <td class="small muted">{{ g.last_user_msg_at | localtime }}</td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="empty">No chats yet. When guests message your Page, they appear here.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

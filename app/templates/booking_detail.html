@@ -1,0 +1,68 @@
+{% extends "base.html" %}{% block title %}{{ b.code }}{% endblock %}
+{% block content %}
+<div class="row"><h1>Booking {{ b.code }}</h1><span class="pill st-{{ b.status }}">{{ STATUS_LABELS[b.status] }}</span></div>
+<div class="grid">
+<div class="card">
+  <div class="kv">
+    <div>Guest</div><div><b>{{ b.guest_name }}</b></div>
+    <div>Phone</div><div>{{ b.phone or '—' }}</div>
+    <div>Room</div><div>{{ b.room_name }}</div>
+    <div>Dates</div><div>{{ b.check_in | nicedate }} → {{ b.check_out | nicedate }} ({{ b.nights }} night{{ 's' if b.nights != 1 }})</div>
+    <div>Guests</div><div>{{ b.num_guests }}</div>
+    <div>Total</div><div><b>{{ '%.2f' % b.total }} {{ s.currency }}</b></div>
+    <div>Payment</div><div>{% if b.payment_method == 'deposit' %}Deposit {{ '%.2f' % b.deposit_amount }} {{ s.currency }} – {{ 'received ✓' if b.deposit_paid else 'not received' }}<br><span class="small muted">Balance on arrival: {{ '%.2f' % (b.total - (b.deposit_amount if b.deposit_paid else 0)) }} {{ s.currency }}</span>{% else %}Pay on arrival{% endif %}</div>
+    {% if b.status == 'pending_deposit' and b.hold_expires_at %}<div>Hold expires</div><div>{{ b.hold_expires_at | localtime }}</div>{% endif %}
+    <div>Source</div><div>{{ 'Messenger' if b.source == 'messenger' else 'Added manually' }}{% if guest %} · <a href="/admin/conversations/{{ b.psid }}">open chat with {{ guest.name or 'guest' }}</a>{% endif %}</div>
+    <div>Requests</div><div>{{ b.special_requests or '—' }}</div>
+    <div>Created</div><div>{{ b.created_at | localtime }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Actions</h2>
+  {% if b.status == 'pending_deposit' %}
+    {% if b.payment_proof %}
+      <p>Payment screenshot from the guest:</p>
+      {% if b.payment_proof.startswith('proof_') %}<a href="/admin/proof/{{ b.payment_proof }}" target="_blank"><img src="/admin/proof/{{ b.payment_proof }}" style="max-width:220px;border-radius:8px;border:1px solid var(--line)"></a>
+      {% else %}<p class="notice">The guest sent a screenshot but it could not be saved here. Open the chat in Meta Business Suite to see it.</p>{% endif %}
+      <p class="small muted">Check your bank app that {{ '%.2f' % b.deposit_amount }} {{ s.currency }} arrived before confirming.</p>
+    {% else %}<p class="muted">Waiting for the guest to pay and send a screenshot.</p>{% endif %}
+    <form method="post" action="/admin/bookings/{{ b.id }}/action" class="inline"><input type="hidden" name="action" value="confirm_deposit"><button>✓ Deposit received – confirm</button></form>
+    {% if b.payment_proof %}
+    <form method="post" action="/admin/bookings/{{ b.id }}/action" style="margin-top:10px"><input type="hidden" name="action" value="reject_proof">
+      <input name="reason" placeholder="Message to guest, e.g. amount not received yet"><button class="danger small" style="margin-top:6px">Reject screenshot</button></form>
+    {% endif %}
+    <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+  {% endif %}
+  <div class="row">
+  {% if b.status in ('confirmed',) %}
+    <form method="post" action="/admin/bookings/{{ b.id }}/action" class="inline"><input type="hidden" name="action" value="check_in"><button>Check in</button></form>
+    <form method="post" action="/admin/bookings/{{ b.id }}/action" class="inline"><input type="hidden" name="action" value="no_show"><button class="secondary">No-show</button></form>
+  {% endif %}
+  {% if b.status == 'checked_in' %}
+    <form method="post" action="/admin/bookings/{{ b.id }}/action" class="inline"><input type="hidden" name="action" value="check_out"><button>Check out</button></form>
+  {% endif %}
+  {% if b.status in ('cancelled','expired','no_show') %}
+    <form method="post" action="/admin/bookings/{{ b.id }}/action" class="inline"><input type="hidden" name="action" value="reactivate"><button class="secondary">Re-activate</button></form>
+  {% endif %}
+  </div>
+  {% if b.status in ('pending_deposit','confirmed') %}
+  <form method="post" action="/admin/bookings/{{ b.id }}/action" style="margin-top:12px" onsubmit="return confirm('Cancel this booking?')"><input type="hidden" name="action" value="cancel">
+    <input name="reason" placeholder="Optional message to guest"><button class="danger small" style="margin-top:6px">Cancel booking</button></form>
+  {% endif %}
+</div>
+</div>
+
+<form class="card" method="post" action="/admin/bookings/{{ b.id }}/edit">
+  <h2>Edit details</h2>
+  <div class="fields">
+    <div><label>Guest name</label><input name="guest_name" value="{{ b.guest_name }}" required></div>
+    <div><label>Phone</label><input name="phone" value="{{ b.phone }}"></div>
+    <div><label>Guests</label><input type="number" min="1" name="num_guests" value="{{ b.num_guests }}"></div>
+  </div>
+  <label>Special requests</label><textarea name="special_requests" style="min-height:60px">{{ b.special_requests }}</textarea>
+  <label>Private notes (not shown to guest)</label><textarea name="notes" style="min-height:60px">{{ b.notes }}</textarea>
+  <p class="small muted">To change dates or room: cancel and create a new booking.</p>
+  <button class="secondary">Save</button>
+</form>
+{% endblock %}

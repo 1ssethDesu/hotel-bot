@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="row"><h1>Availability</h1><span class="spacer"></span>
+  <a class="btn secondary small" href="/admin/calendar?start={{ prev }}">← Prev</a>
+  <form method="get" class="inline"><input type="date" name="start" value="{{ start }}" onchange="this.form.submit()" style="width:auto"></form>
+  <a class="btn secondary small" href="/admin/calendar?start={{ next }}">Next →</a></div>
+<div class="card">{% include "_calgrid.html" %}</div>
+
+<div class="grid">
+<form class="card" method="post" action="/admin/blocks">
+  <h2>Close rooms (maintenance, private use)</h2>
+  <p class="small muted">Closed rooms are not offered by the bot.</p>
+  <div class="fields">
+    <div><label>Room type</label><select name="room_type_id">{% for r in rooms %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
+    <div><label>How many rooms</label><input type="number" name="units" value="1" min="1"></div>
+    <div><label>From night</label><input type="date" name="date_from" required></div>
+    <div><label>Last night (included)</label><input type="date" name="date_to" required></div>
+  </div>
+  <label>Reason</label><input name="reason" placeholder="e.g. painting">
+  <p><button>Close rooms</button></p>
+</form>
+<div class="card"><h2>Closed rooms</h2>
+  {% for b in blocks %}
+  <div class="row" style="padding:4px 0;border-bottom:1px solid var(--line)">
+    <div>{{ b.units }} × {{ b.room_name }} · {{ b.date_from | nicedate }} → {{ b.date_to | nicedate }}<br><span class="small muted">{{ b.reason }}</span></div>
+    <span class="spacer"></span>
+    <form method="post" action="/admin/blocks/{{ b.id }}/delete" class="inline"><button class="danger small">Re-open</button></form>
+  </div>
+  {% else %}<div class="empty">No rooms are closed.</div>{% endfor %}
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Add booking{% endblock %}
+{% block content %}
+<h1>Add booking (walk-in, phone, other website)</h1>
+<p class="muted">Add every booking you receive outside Messenger here, so the bot never sells the same room twice.</p>
+<form class="card" method="post" action="/admin/bookings/new">
+  <div class="fields">
+    <div><label>Room type</label><select name="room_type_id">{% for r in rooms %}<option value="{{ r.id }}">{{ r.name }} (max {{ r.capacity }})</option>{% endfor %}</select></div>
+    <div><label>Check-in</label><input type="date" name="check_in" value="{{ check_in }}" required></div>
+    <div><label>Check-out</label><input type="date" name="check_out" value="{{ check_out }}" required></div>
+    <div><label>Guests</label><input type="number" name="num_guests" value="2" min="1"></div>
+    <div><label>Guest name</label><input name="guest_name" required></div>
+    <div><label>Phone</label><input name="phone"></div>
+    <div><label>Payment</label><select name="payment_method"><option value="arrival">Pay on arrival</option><option value="deposit">Deposit</option></select></div>
+  </div>
+  <label class="check"><input type="checkbox" name="deposit_paid" value="1"> Deposit already received</label>
+  <label>Special requests</label><textarea name="special_requests" style="min-height:60px"></textarea>
+  <label>Private notes</label><textarea name="notes" style="min-height:60px"></textarea>
+  <p><button type="submit">Save booking</button> <a class="btn secondary" href="/admin/bookings">Cancel</a></p>
+</form>
+{% endblock %}

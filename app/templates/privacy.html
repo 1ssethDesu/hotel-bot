@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy · {{ s.hotel_name }}</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main style="max-width:760px">
+<h1>Privacy Policy – {{ s.hotel_name }}</h1>
+<p>This policy explains how {{ s.hotel_name }} ("we") handles information when you chat with us on Facebook Messenger.</p>
+<h2>What we collect</h2>
+<p>Your Messenger name and ID, the messages you send us, and the booking details you give us (name, phone number, dates, number of guests, special requests and any payment screenshot you send).</p>
+<h2>How we use it</h2>
+<p>Only to answer your questions, manage your booking and contact you about your stay. Our automated assistant uses an AI service to read and reply to messages. We do not sell your information or use it for advertising.</p>
+<h2>Storage and retention</h2>
+<p>Information is stored on our private booking system and kept for as long as needed for your booking and our legal and accounting records.</p>
+<h2>Your choices</h2>
+<p>You can ask to speak with a staff member at any time, or ask us to delete your conversation and personal data by messaging us{% if s.phone %} or calling {{ s.phone }}{% endif %}.</p>
+<h2>Contact</h2>
+<p>{{ s.hotel_name }}{% if s.address %}, {{ s.address }}{% endif %}{% if s.phone %} · {{ s.phone }}{% endif %}</p>
+</main></body></html>

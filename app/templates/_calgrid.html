@@ -1,0 +1,7 @@
+<div class="table-wrap"><table class="cal">
+  <thead><tr><th>Room type</th>{% for d in dates %}<th class="{{ 'wkend' if d.weekday() >= 5 }}">{{ d.strftime('%a') }}<br>{{ d.strftime('%d/%m') }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in grid %}<tr><td>{{ row.room_type.name }} <span class="small muted">×{{ row.room_type.quantity }}</span></td>
+    {% for c in row.cells %}<td class="{{ 'wkend' if dates[loop.index0].weekday() >= 5 }}"><a href="/admin/bookings/new?check_in={{ c.date }}" style="text-decoration:none"><div class="cell {{ 'full' if c.free == 0 else ('some' if c.free < c.total else 'free') }}" title="{{ c.free }} of {{ c.total }} free">{{ c.free }}</div></a></td>{% endfor %}
+  </tr>{% endfor %}</tbody>
+</table></div>
+<p class="small muted">Numbers = rooms still free that night. Tap a cell to add a booking for that date.</p>

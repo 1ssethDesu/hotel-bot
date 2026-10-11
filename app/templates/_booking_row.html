@@ -1,0 +1,9 @@
+<tr>
+  <td><a href="/admin/bookings/{{ b.id }}"><b>{{ b.code }}</b></a><br><span class="small muted">{{ 'Messenger' if b.source == 'messenger' else 'Manual' }}</span></td>
+  <td>{{ b.guest_name }}<br><span class="small muted">{{ b.phone }}</span></td>
+  <td>{{ b.room_name }}<br><span class="small muted">{{ b.num_guests }} guest{{ 's' if b.num_guests != 1 }}</span></td>
+  <td>{{ b.check_in | nicedate }}<br><span class="small muted">→ {{ b.check_out | nicedate }} · {{ b.nights }}n</span></td>
+  <td>{{ '%.2f' % b.total }}{% if b.payment_method == 'deposit' %}<br><span class="small muted">dep {{ '%.2f' % b.deposit_amount }}{{ ' ✓' if b.deposit_paid }}</span>{% endif %}</td>
+  <td><span class="pill st-{{ b.status }}">{{ STATUS_LABELS[b.status] }}</span>
+    {% if b.status == 'pending_deposit' and b.payment_proof %}<br><span class="small" style="color:var(--warn)">Screenshot received – verify</span>{% endif %}</td>
+</tr>

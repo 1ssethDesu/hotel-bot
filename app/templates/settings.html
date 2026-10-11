@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<div class="grid">
+<form class="card" method="post" action="/admin/settings">
+  <h2>Bot & payments</h2>
+  <label class="check"><input type="checkbox" name="bot_enabled" value="1" {{ 'checked' if s.bot_enabled == '1' }}> Bot answers guests automatically</label>
+  <label class="check"><input type="checkbox" name="allow_pay_on_arrival" value="1" {{ 'checked' if s.allow_pay_on_arrival == '1' }}> Allow "pay on arrival" (booking confirmed instantly)</label>
+  <label class="check"><input type="checkbox" name="allow_deposit" value="1" {{ 'checked' if s.allow_deposit == '1' }}> Allow deposit by KHQR</label>
+  <div class="fields">
+    <div><label>Deposit %</label><input type="number" name="deposit_percent" value="{{ s.deposit_percent }}" min="1" max="100"></div>
+    <div><label>Hold room while unpaid (hours)</label><input type="number" step="0.5" name="hold_hours" value="{{ s.hold_hours }}"></div>
+    <div><label>Currency</label><input name="currency" value="{{ s.currency }}"></div>
+    <div><label>Bot resumes after you go quiet (hours, 0 = never)</label><input type="number" step="0.5" name="auto_resume_hours" value="{{ s.auto_resume_hours }}"></div>
+    <div><label>Max nights per booking</label><input type="number" name="max_nights" value="{{ s.max_nights }}"></div>
+    <div><label>Book up to (days ahead)</label><input type="number" name="max_advance_days" value="{{ s.max_advance_days }}"></div>
+  </div>
+  <label>Payment instructions sent with the QR</label>
+  <textarea name="payment_instructions">{{ s.payment_instructions }}</textarea>
+  <p><button>Save settings</button></p>
+</form>
+
+<div>
+<form class="card" method="post" action="/admin/settings/khqr" enctype="multipart/form-data">
+  <h2>KHQR payment code</h2>
+  <p class="small muted">Upload your static KHQR image (from the ABA, ACLEDA or other bank app: "Receive money → QR"). The bot sends it to guests who choose a deposit.</p>
+  {% if s.khqr_image %}<img src="/media/{{ s.khqr_image }}" style="max-width:180px;border-radius:8px;border:1px solid var(--line)">{% else %}<div class="notice">No KHQR uploaded yet. Deposit bookings will ask you to send payment details by hand.</div>{% endif %}
+  <div class="row" style="margin-top:8px"><input type="file" name="qr" accept="image/*" required style="flex:1"><button class="secondary small">Upload</button></div>
+</form>
+
+<div class="card">
+  <h2>Connection status</h2>
+  <div class="{{ 'ok-dot' if fb_ready else 'no-dot' }}">Facebook Page token {{ 'set' if fb_ready else 'missing' }}</div>
+  <div class="{{ 'ok-dot' if ai_ready else 'no-dot' }}">AI key {{ 'set' if ai_ready else 'missing' }} <span class="small muted">({{ model }})</span></div>
+  <div class="{{ 'ok-dot' if tg_ready else 'no-dot' }}">Telegram alerts {{ 'on' if tg_ready else 'off (optional)' }}</div>
+  <label>Webhook URL (paste into Meta app)</label><input value="{{ webhook_url }}" readonly onclick="this.select()">
+  <label>Privacy policy URL (for Meta App Review)</label><input value="{{ privacy_url }}" readonly onclick="this.select()">
+  <p class="small muted">Keys are set in the server's environment (.env file), not here.</p>
+</div>
+</div>
+</div>
+{% endblock %}
