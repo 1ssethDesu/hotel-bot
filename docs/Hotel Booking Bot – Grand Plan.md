@@ -99,11 +99,11 @@ Seven phases, in this order. Telegram goes live before Messenger because it need
 
 **Phase 0 – Accounts and keys (you, \~1 hour)**
 
-- [ ] Google account for the hotel (owns the Sheet)
-- [ ] Claude API key at console.anthropic.com, with a monthly spending limit
-- [ ] Telegram: in @BotFather create **two** bots: the guest bot (e.g. @MyHotelBot) and the staff bot (e.g. @MyHotelStaffBot). Save both tokens
+- [x] Google account for the hotel (owns the Sheet)
+- [x] Claude API key at console.anthropic.com, with a monthly spending limit
+- [ ] Telegram: in @BotFather create **two** bots: the guest bot (e.g. @MyHotelBot) and the staff bot (e.g. @MyHotelStaffBot). Save both tokens — *guest bot done (@neangpoun_bot); staff bot still to create*
 - [ ] Meta developer account at developers.facebook.com (with the Facebook account that is admin of your Page)
-- [ ] Railway (or Render) account and a free GitHub account
+- [x] Railway (or Render) account and a free GitHub account
 
 **Phase 1 – Google Sheet + access (you, \~1 hour; I send the template)**
 
@@ -116,13 +116,13 @@ Seven phases, in this order. Telegram goes live before Messenger because it need
 **Phase 2 – Build the code (me)**
 
 - [ ] Reuse the tested booking brain from the MVP; replace SQLite with a Google Sheet storage module
-- [ ] Telegram guest adapter (text, photos, "Share my phone" button) and Messenger adapter
+- [ ] Telegram guest adapter (text, photos, "Share my phone" button) and Messenger adapter — *Telegram text and photos working on the MVP code (tested in local Docker); "Share my phone" still to do*
 - [ ] Staff bot: alerts, deposit buttons, reply-to-guest, `/today`, `/walkin`, `/test`, `/boton` `/botoff`
 - [ ] Automated tests for every flow in the testing checklist, run against a fake Sheet
 
 **Phase 3 – Put the server online (you, with my guide, \~30 min)**
 
-- [ ] Upload the code to a private GitHub repo and create a Railway project from it
+- [ ] Upload the code to a private GitHub repo and create a Railway project from it — *repo pushed and Railway project created; first build failed, Dockerfile fix not pushed yet*
 - [ ] Paste the settings: Claude key, both Telegram tokens, Sheet ID, service-account JSON, your staff chat ID
 - [ ] Note the public address, e.g. https://myhotel-bot.up.railway.app
 

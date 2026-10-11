@@ -48,7 +48,7 @@ TOOLS = [
     },
     {
         "name": "get_my_bookings",
-        "description": "List the bookings made from this Messenger conversation.",
+        "description": "List the bookings made from this conversation.",
         "input_schema": {"type": "object", "properties": {}},
     },
     {
@@ -117,16 +117,16 @@ def build_system_prompt(guest_name: str = "") -> str:
     dates_hint = ", ".join(
         f"{(today + timedelta(days=i)).strftime('%a')} {(today + timedelta(days=i)).isoformat()}" for i in range(8)
     )
-    return f"""You are the friendly receptionist of {s['hotel_name']}, chatting with guests on Facebook Messenger.
+    return f"""You are the friendly receptionist of {s['hotel_name']}, chatting with guests on Facebook Messenger and Telegram.
 You handle questions and bookings on your own so the owner does not have to reply.
 
 TODAY: {today.strftime('%A')} {today.isoformat()} (timezone {config.TIMEZONE}). Next days: {dates_hint}
-Guest's Facebook name: {guest_name or 'unknown'}
+Guest's profile name: {guest_name or 'unknown'}
 
 LANGUAGE
 - Reply in the language the guest uses. Khmer message -> reply in natural, polite Khmer. English -> English.
   If mixed, follow the guest's main language. Use room names in that language.
-- Messenger shows plain text only: no markdown, no ** or #. Keep replies short (1-5 short lines), warm, clear.
+- The chat shows plain text only: no markdown, no ** or #. Keep replies short (1-5 short lines), warm, clear.
   Simple dashes for lists are fine.
 
 HOTEL FACTS (only source of truth - never invent anything beyond this)
@@ -272,7 +272,7 @@ class ToolRunner:
         set_paused(self.psid, True, reason)
         self.handed_off = True
         name = get_guest(self.psid).get("name") or self.psid
-        notify.owner_alert(f"Guest {name} needs you on Messenger: {reason}\n"
+        notify.owner_alert(f"Guest {name} needs you: {reason}\n"
                            f"Dashboard: {config.BASE_URL}/admin/conversations/{self.psid}")
         return {"ok": True, "note": "Bot is paused for this guest. Tell them a team member will reply soon "
                                     "(usually within working hours)."}
@@ -285,11 +285,12 @@ def get_guest(psid: str) -> dict:
     return dict(row) if row else {}
 
 
-def ensure_guest(psid: str) -> dict:
+def ensure_guest(psid: str, name: str | None = None) -> dict:
     g = get_guest(psid)
     if g:
         return g
-    name = messenger.fetch_name(psid)
+    if name is None:
+        name = messenger.fetch_name(psid)
     with db.get_conn() as conn:
         conn.execute("INSERT OR IGNORE INTO guests(psid, name, first_seen) VALUES (?,?,?)", (psid, name, db.utcnow()))
     return get_guest(psid)

@@ -1,4 +1,4 @@
-"""FastAPI app: Messenger webhook, public media, privacy page and the owner dashboard."""
+"""FastAPI app: Messenger webhook, Telegram polling, public media, privacy page and the owner dashboard."""
 import asyncio
 import json
 import logging
@@ -9,10 +9,11 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import bot, config, db, messenger
+from . import bot, config, db, messenger, telegram
 from .dashboard import router as dashboard_router, templates
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)   # its INFO lines print full URLs, which hold the bot token
 log = logging.getLogger("main")
 
 
@@ -46,9 +47,12 @@ def _check_production_config() -> None:
 async def lifespan(app: FastAPI):
     _check_production_config()
     db.init_db()
-    task = asyncio.create_task(_expiry_loop())
+    tasks = [asyncio.create_task(_expiry_loop())]
+    if config.TELEGRAM_BOT_TOKEN:
+        tasks.append(asyncio.create_task(telegram.poll_loop(bot.handle_telegram_update)))
     yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(title="Hotel Messenger Bot", lifespan=lifespan, docs_url=None, redoc_url=None)

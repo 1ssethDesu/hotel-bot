@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 
-from app import agent, booking, bot, config, db, messenger
+from app import agent, booking, bot, config, db, messenger, telegram
 from app.main import app
 
 bot.DEBOUNCE_SECONDS = 0
@@ -404,3 +404,53 @@ def test_production_config_check(monkeypatch):
     main._check_production_config()
     monkeypatch.setattr(config, "FB_APP_SECRET", "")
     assert messenger.verify_signature(b"{}", "") is False
+
+
+# ---------------- Telegram guest channel ----------------
+def tg_update(uid, chat_id=555, chat_type="private", **message):
+    return {"update_id": uid, "message": {"chat": {"id": chat_id, "type": chat_type},
+                                          "from": {"first_name": "Sok", "last_name": "Dara"}, **message}}
+
+
+def test_telegram_guest_flow(sent, monkeypatch):
+    calls = []
+    monkeypatch.setattr(telegram, "_call", lambda method, files=None, **kw: calls.append((method, kw)) or {"ok": True})
+    monkeypatch.setattr(telegram, "download_photo", lambda file_id, code: "proof_tg.jpg")
+    fake = FakeClaude([Resp([text("Hello! How can I help?")]), Resp([text("Nice photo!")])])
+    monkeypatch.setattr(agent, "_client", fake)
+
+    bot.handle_telegram_update(tg_update(1, text="/id"))
+    assert calls == [("sendMessage", {"chat_id": "555", "text": "Your Telegram chat ID is 555",
+                                      "disable_web_page_preview": True})]
+    assert agent.get_guest("tg555") == {} and fake.calls == []      # asking for the ID starts no conversation
+
+    bot.handle_telegram_update(tg_update(2, text="/start"))
+    bot.handle_telegram_update(tg_update(2, text="/start"))         # redelivered after a restart
+    bot.handle_telegram_update(tg_update(3, chat_id=-100, chat_type="group", text="hi all"))
+    assert len(fake.calls) == 1 and agent.get_guest("tg555")["name"] == "Sok Dara"
+    assert calls[-1] == ("sendMessage", {"chat_id": "555", "text": "Hello! How can I help?",
+                                         "disable_web_page_preview": True})
+
+    bot.handle_telegram_update(tg_update(4, photo=[{"file_id": "small"}, {"file_id": "big"}]))
+    assert len(fake.calls) == 2                                     # no deposit waiting: the AI answers the photo
+
+    b = booking.create_booking(room_type_id=family_id(), check_in=d(3), check_out=d(4), num_guests=2,
+                               guest_name="Sok Dara", phone="012", payment_method="deposit", psid="tg555")
+    bot.handle_telegram_update(tg_update(5, photo=[{"file_id": "small"}, {"file_id": "big"}]))
+    assert booking.get_booking(code=b["code"])["payment_proof"] == "proof_tg.jpg"
+    assert "received your payment screenshot" in calls[-1][1]["text"] and len(fake.calls) == 2
+
+    assert bot.staff_send("tg555", "Hello from the owner") == ""
+    assert calls[-1][1]["text"] == "Hello from the owner" and agent.get_guest("tg555")["bot_paused"] == 1
+    assert sent == []                                               # nothing went to Messenger
+
+
+def test_telegram_sends_own_media_as_upload(monkeypatch):
+    calls = []
+    monkeypatch.setattr(telegram, "_call", lambda method, files=None, **kw: calls.append((files, kw)) or {"ok": True})
+    (config.UPLOAD_DIR / "khqr_t.png").write_bytes(b"png")
+    assert telegram.send_image("tg1", messenger.public_url("khqr_t.png"))
+    assert telegram.send_image("tg1", "https://example.com/a.jpg")
+    assert calls[0][0]["photo"][0] == "khqr_t.png" and "photo" not in calls[0][1]
+    assert calls[1] == (None, {"chat_id": "1", "photo": "https://example.com/a.jpg"})
+    assert telegram.is_telegram("tg-42") and not telegram.is_telegram("TEST-dashboard")

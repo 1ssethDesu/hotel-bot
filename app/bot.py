@@ -1,4 +1,4 @@
-"""Handles incoming Messenger events and owner-triggered guest notifications."""
+"""Handles incoming Messenger / Telegram events and owner-triggered guest notifications."""
 import logging
 import re
 import threading
@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from . import agent, booking, config, db, messenger, notify
+from . import agent, booking, config, db, messenger, notify, telegram
 
 log = logging.getLogger("bot")
 KHMER_RE = re.compile(r"[ក-៿]")
@@ -41,12 +41,18 @@ def _already_processed(mid: str) -> bool:
         return cur.rowcount == 0
 
 
+def _channel(psid: str):
+    """The adapter module (same send functions) for the app this guest writes from."""
+    return telegram if telegram.is_telegram(psid) else messenger
+
+
 def reply(psid: str, text: str, images=()) -> bool:
-    """Send to the guest. Returns False if Meta refused or the 24h window is closed."""
+    """Send to the guest. Returns False if the app refused or Messenger's 24h window is closed."""
+    ch = _channel(psid)
     try:
-        ok = messenger.send_text(psid, text) if text else True
+        ok = ch.send_text(psid, text) if text else True
         for url in images:
-            ok = messenger.send_image(psid, url) and ok
+            ok = ch.send_image(psid, url) and ok
     except messenger.OutsideWindow:
         return False
     if text:
@@ -55,8 +61,12 @@ def reply(psid: str, text: str, images=()) -> bool:
 
 
 def _owner_must_contact(b: dict, what: str) -> None:
-    notify.owner_alert(f"Could not message {b['guest_name']} on Messenger about {b['code']} ({what}). Their last "
-                       f"message is probably older than 24h. Please call: {b.get('phone') or 'no phone given'}")
+    if telegram.is_telegram(b["psid"]):
+        where, why = "Telegram", "They may have blocked the bot."
+    else:
+        where, why = "Messenger", "Their last message is probably older than 24h."
+    notify.owner_alert(f"Could not message {b['guest_name']} on {where} about {b['code']} ({what}). {why} "
+                       f"Please call: {b.get('phone') or 'no phone given'}")
 
 
 # ---------- incoming ----------
@@ -121,12 +131,10 @@ def handle_event(event: dict) -> None:
     attachments = message.get("attachments") or []
     images = [a for a in attachments if a.get("type") == "image" and not (a.get("payload") or {}).get("sticker_id")]
     if images:
-        today = booking.today_local().isoformat()
-        pending = booking.list_bookings(psid=psid, status="pending_deposit") or [
-            b for b in booking.list_bookings(psid=psid, status="expired") if b["check_in"] >= today][:1]
+        pending = _awaiting_deposit(psid)
         if pending:
-            return _handle_payment_proof(psid, pending[0], (images[0].get("payload") or {}).get("url", ""),
-                                         caption=text)
+            url = (images[0].get("payload") or {}).get("url", "")
+            return _handle_payment_proof(psid, pending, _download_proof(url, pending["code"]), caption=text)
         text = (text + "\n[Guest sent a photo]").strip()
     elif attachments and not text:
         kinds = ", ".join(sorted({a.get("type", "file") for a in attachments}))
@@ -134,6 +142,53 @@ def handle_event(event: dict) -> None:
     if not text:
         return
     _respond(psid, text)
+
+
+def handle_telegram_update(update: dict) -> None:
+    try:
+        _handle_telegram_message(update)
+    except Exception:
+        log.exception("Failed to handle Telegram update %s", update.get("update_id"))
+
+
+def _handle_telegram_message(update: dict) -> None:
+    message = update.get("message") or {}
+    chat = message.get("chat") or {}
+    if chat.get("type") != "private":   # guests book in a one-to-one chat; ignore groups
+        return
+    if _already_processed(f"tg{update.get('update_id')}"):
+        return
+    psid = telegram.psid_for(chat["id"])
+    text = (message.get("text") or message.get("caption") or "").strip()
+    if text == "/id":   # the owner needs this number for TELEGRAM_CHAT_ID
+        telegram.send_text(psid, f"Your Telegram chat ID is {chat['id']}")
+        return
+    sender = message.get("from") or {}
+    agent.ensure_guest(psid, name=f"{sender.get('first_name', '')} {sender.get('last_name', '')}".strip())
+    if text == "/start":
+        text = "Hello"
+
+    photo = message.get("photo") or []
+    if photo:
+        pending = _awaiting_deposit(psid)
+        if pending:
+            filename = telegram.download_photo(photo[-1]["file_id"], pending["code"])   # last = largest size
+            return _handle_payment_proof(psid, pending, filename, caption=text)
+        text = (text + "\n[Guest sent a photo]").strip()
+    elif not text:
+        kinds = [k for k in ("voice", "video", "audio", "document", "sticker", "location", "contact") if k in message]
+        if not kinds:
+            return
+        text = f"[Guest sent: {', '.join(kinds)}]"
+    _respond(psid, text)
+
+
+def _awaiting_deposit(psid: str) -> dict | None:
+    """The booking a payment screenshot belongs to: one waiting for a deposit, or one whose hold just expired."""
+    today = booking.today_local().isoformat()
+    pending = booking.list_bookings(psid=psid, status="pending_deposit") or [
+        b for b in booking.list_bookings(psid=psid, status="expired") if b["check_in"] >= today]
+    return pending[0] if pending else None
 
 
 def _download_proof(url: str, code: str) -> str:
@@ -159,8 +214,8 @@ def _download_proof(url: str, code: str) -> str:
         return ""
 
 
-def _handle_payment_proof(psid: str, b: dict, url: str, caption: str = "") -> None:
-    filename = _download_proof(url, b["code"]) or "not_downloaded"
+def _handle_payment_proof(psid: str, b: dict, filename: str, caption: str = "") -> None:
+    filename = filename or "not_downloaded"
     with db.get_conn() as conn:
         conn.execute("UPDATE guests SET last_user_msg_at = ? WHERE psid = ?", (db.utcnow(), psid))
     agent.log_message(psid, "system", f"Guest sent a payment screenshot for {b['code']}.")
@@ -229,7 +284,7 @@ def _respond(psid: str, text: str, already_logged: bool = False) -> None:
             latest = conn.execute("SELECT MAX(id) FROM messages WHERE psid=? AND role='user'", (psid,)).fetchone()[0]
         if latest != my_id:
             return  # a newer message will trigger the reply
-        messenger.typing_on(psid)
+        _channel(psid).typing_on(psid)
         try:
             text_out, runner = agent.generate_reply(psid)
         except Exception as exc:
@@ -246,7 +301,7 @@ def _respond(psid: str, text: str, already_logged: bool = False) -> None:
 
 # ---------- owner-triggered messages ----------
 def _notify(b: dict, what: str, en: str, km: str):
-    """Message the guest about their booking. Returns None if it isn't a Messenger booking."""
+    """Message the guest about their booking. Returns None if it wasn't made through a chat."""
     if not b.get("psid") or b["psid"].startswith("TEST-"):
         return None
     ok = reply(b["psid"], t(b["psid"], en, km))
@@ -288,9 +343,11 @@ def notify_guest_expired(b: dict):
 def staff_send(psid: str, text: str) -> str:
     """Owner replies from the dashboard. Returns '' on success, otherwise an error message."""
     try:
-        ok = messenger.send_text(psid, text, human=True)
+        ok = _channel(psid).send_text(psid, text, human=True)
     except messenger.OutsideWindow:
         ok = False
+    if not ok and telegram.is_telegram(psid):
+        return "Telegram did not accept the message. The guest may have blocked the bot. Please contact them by phone."
     if not ok:
         return ("Meta did not accept the message. The guest's last message is probably older than 24 hours "
                 "(7 days if your app has the Human Agent permission). Please contact them by phone.")
